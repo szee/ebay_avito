@@ -4,28 +4,52 @@ This one takes the keywords and searches avito for product names, prices and may
 
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
+from urllib.error import HTTPError
 import itertools
+from re import sub
+
 
 '''
-The function gets a space separated keywords, replaces spaces with "+" and constructs the url to pass in to
-the parsing part. Returns two bs4.element.ResultSet, one for the product name, another for it's price.
+The function gets the opened URL. Returns two lists, one with product names, another with the prices.
 '''
-def avito_search_by_keywords(keywords):
-    formatted_keywords = keywords.replace(" ", "+")
-    url = "https://www.avito.ru/moskva?q=" + formatted_keywords
-    avito_code = urlopen(url).read()
+def parsing(avito_code):
     raw = BeautifulSoup(avito_code, 'lxml')
-    item_name = raw.find_all("a", class_="item-description-title-link")
-    item_price = raw.find_all("div", class_="about")
+    item_names_raw = raw.find_all("a", class_="item-description-title-link")
+    item_prices_raw = raw.find_all("div", class_="about")
 
-    item_name_str = [name_str.string for name_str in item_name]
-    item_price_str = [price_str.string for price_str in item_price]
+    item_names = []
+    item_prices = []
 
-    return item_name_str, item_price_str
+    for item, price in itertools.zip_longest(item_names_raw, item_prices_raw):
+        try:
+            item_prices.append(int(sub("[\s+]", "", price.string[:-11])))
+            item_names.append(item.string.strip())
+        except (TypeError, ValueError, AttributeError):
+            continue
 
-item_name, item_price = avito_search_by_keywords("canon 6d")
-for item, price in itertools.zip_longest(item_name, item_price):
-    print(item, "\n", price, end="\n=====================\n")
+    return item_names, item_prices
 
-#Next step is to iterate through all the pages found for given keywords using link
-#https://www.avito.ru/moskva?p=6&q=canon+6d
+'''
+This one gets the keywords, iterates through all the available pages on avito for the request, calls the
+"searching" for every page and adds up the results.
+'''
+def searching(keywords):
+    formatted_keywords = keywords.replace(" ", "+")
+    i = 1
+    urls = []
+    item_names = []
+    item_prices = []
+    while True:
+        try:
+            url = ("https://www.avito.ru/moskva?p={}&q={}".format(i, formatted_keywords))
+            iter_names, iter_prices = parsing(urlopen(url).read())
+            item_names.extend(iter_names)
+            item_prices.extend(iter_prices)
+            i += 1    
+        except HTTPError:
+            break
+
+    return item_names, item_prices
+
+
+print(searching("canon 6d"))

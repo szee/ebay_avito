@@ -28,7 +28,17 @@ def search_by_key_words(keywords, app_name):
                                   "paginationInput.entriesPerPage={}".
                                   format(app_name, formatted_keywords, number_of_items))
 
-    return search_results
+    item_names = []
+    item_prices = []
+    for child in ET.fromstring(search_results.text)[3]:
+        try:
+            item_prices.append(float(child[13][1].text))
+            item_names.append(child[1].text)
+        except ValueError:
+            continue
+        #print(child[1].text, float(child[13][1].text), end="\n")
+
+    return item_names, item_prices
 
 #The part to make an XML file just to take a look at the structure
 #f = open("request.xml", "w")
@@ -38,7 +48,5 @@ def search_by_key_words(keywords, app_name):
 '''
 Finally decided to parse XML with ElementTree. Messing around with XML (getting product name, price, etc).
 '''
-root = ET.fromstring(search_by_key_words("canon 6d", sys.argv[1]).text)
-
-for child in root[3]:
-    print(child[1].text, child[13][1].text, end="\n")
+items, prices = search_by_key_words("canon 6d", sys.argv[1])
+print(items, prices)
