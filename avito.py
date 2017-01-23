@@ -5,6 +5,7 @@ This one takes the keywords and searches avito for product names, prices and may
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 from urllib.error import HTTPError
+from urllib.parse import quote_plus
 import itertools
 from re import sub
 
@@ -41,15 +42,12 @@ def searching(keywords):
     item_prices = []
     while True:
         try:
-            url = ("https://www.avito.ru/moskva?p={}&q={}".format(i, formatted_keywords))
+            url = ("https://www.avito.ru/moskva?p={}&q={}".format(i, quote_plus(formatted_keywords)))
             iter_names, iter_prices = parsing(urlopen(url).read())
             item_names.extend(iter_names)
             item_prices.extend(iter_prices)
-            i += 1    
+            i += 1
         except HTTPError:
             break
 
     return item_names, item_prices
-
-
-print(searching("canon 6d"))

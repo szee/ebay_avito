@@ -2,6 +2,7 @@
 This one will make a call to ebay's API making search by keywords.
 '''
 
+import requests
 import sys
 import xml.etree.ElementTree as ET
 
@@ -13,10 +14,7 @@ Returns response-type response on the API call.
 
 
 def search_by_key_words(keywords, app_name):
-    import requests
-
-
-    number_of_items = 5
+    number_of_items = 100
     formatted_keywords = keywords.replace(" ", "%20").lower()
     search_results = requests.get("http://svcs.ebay.com/services/search/FindingService/v1?" \
                                   "OPERATION-NAME=findItemsByKeywords&" \
@@ -30,16 +28,28 @@ def search_by_key_words(keywords, app_name):
 
     item_names = []
     item_prices = []
+    item_prices_rur = []
+    currency_dict = getting_currency_dict()
+
     for child in ET.fromstring(search_results.text)[3]:
         try:
-            item_prices.append(float(child[13][1].text))
-            item_names.append(child[1].text)
-        except ValueError:
+            price_currency = float(child[13][1].text)
+            currency_ticker = child[13][1].attrib["currencyId"]
+            price_rur = price_currency * currency_dict[currency_ticker]
+            item_name = child[1].text
+            item_prices.append(price_currency)
+            item_prices_rur.append(price_rur)
+            item_names.append(item_name)
+        except (ValueError, IndexError):
             continue
-        #print(child[1].text, float(child[13][1].text), end="\n")
 
-    return item_names, item_prices
+    return item_names, item_prices, item_prices_rur
 
+def getting_currency_dict():
+    currency_req = requests.get("http://www.cbr.ru/scripts/XML_daily.asp")
+    currencies = ET.fromstring(currency_req.text)
+    currency_dict = {rate[1].text:float(rate[4].text.replace( ",", ".")) for rate in currencies}
+    return currency_dict
 #The part to make an XML file just to take a look at the structure
 #f = open("request.xml", "w")
 #f.write(search_by_key_words("canon 6d").text)
@@ -48,5 +58,3 @@ def search_by_key_words(keywords, app_name):
 '''
 Finally decided to parse XML with ElementTree. Messing around with XML (getting product name, price, etc).
 '''
-items, prices = search_by_key_words("canon 6d", sys.argv[1])
-print(items, prices)
